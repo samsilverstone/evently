@@ -1,62 +1,50 @@
 from .models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response 
+from rest_framework import generics
+from django.contrib.auth import authenticate,get_user_model
+from django.db.models import Q
 from .serializers import CreateUserSerializer,ChangePasswordSerializer
-from rest_framework import authentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework_jwt.settings import api_settings
+from .utils import jwt_response_payload_handler
+from .permissions import IsOwnerOrReadOnly
 import jwt,json
+
+jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
+jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
 
 
 class LoginAPI(APIView):
-        
+    permission_classes=[IsOwnerOrReadOnly]  
     def post(self,request,*args,**kwargs):
-        if not request.data:
-            return Response({'Error':"Please provide username/password"},status=400)
+        if request.user.is_authenticated:
+            return Response({'token':'You are already authenticated'},status=400) 
+        data=request.data
+        username=data.get('username','')
+        password=data.get('password','')
+        user=authenticate(username=username,password=password)
+        qs=User.objects.filter(Q(username__iexact=username)|Q(email__iexact=username)).distinct()
+        if qs.count()==1:
+            user_obj=qs.first()
+            if user_obj.check_password(password):
+                user=user_obj
+                payload=jwt_payload_handler(user)
+                token_partial=jwt_encode_handler(payload)
+                token=jwt_response_payload_handler(token_partial,user,request=request)
+                return Response(token)
 
-        username=request.data["username"]
-        password=request.data["password"]
-        try:
-            user=User.objects.get(username=username,password=password)
-        except User.DoesNotExist:
-            return Response({"Error":"Invalid username/password"},status=400)
 
-        if user:
-            _id=str(user.id)
-            payload={
-                'id':_id,
-                'email':user.email
-            }
-            jwt_token=jwt.encode(payload,'JSONwebtoken',algorithm='HS256')
-            print(jwt_token)
-            return Response({'token':jwt_token},status=200,content_type="application/json")
-        else:
-            return Response(
-            json.dumps({'Error':'Invalid Credentials'}),
-            status=400,
-            content_type="application/json"
-            )
+class RegistrationAPI(generics.CreateAPIView):
+    queryset=User.objects.all()
+    serializer_class=CreateUserSerializer
+    permission_class=[]
 
-class RegistrationAPI(APIView):
 
-    def post(self,request,*args,**kwargs):
-        serializer=CreateUserSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            user=serializer.save()
-        payload={
-            'id':user.id,
-            'email':user.email
-        }
-        print(type(user.id))
-        jw_token=jwt.encode(payload,'JSONwebtoken',algorithm='HS256')
-        print(jw_token)
-        return Response({
-            "user":[serializer.data["username"],serializer.data["email"]],
-            "token":jw_token
-        })
-
-class ResetPasswordAPI(APIView):
+class ResetPasswordAPI(generics.CreateAPIView):
     
-    def post(self,request,*args,**kwargs):
-        serializer=ChangePasswordSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-        
+    authentication_classes=[TokenAuthentication,SessionAuthentication]
+    serializer_class=ChangePasswordSerializer
+    
+    def get_serializer_context(self,*args,**kwargs):
+        return {'request':self.request}
