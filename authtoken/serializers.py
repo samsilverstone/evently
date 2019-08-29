@@ -50,7 +50,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
     def validate_email(self,value):
         qs=User.objects.filter(email__iexact=value)
         if qs.exists():
-            raise serializers.ValidationError("User with email already exists")
+            raise serializers.ValidationError("User with this email already exists")
         return value
     
     def validate_username(self,value):
@@ -81,23 +81,36 @@ class ChangePasswordSerializer(serializers.Serializer):
     New_Password=serializers.CharField(style={'input_type':'password'},write_only=True)
     New_Password2=serializers.CharField(style={'input_type':'password'},write_only=True)
 
-    def validate_oldpassword(value):
-        request=self.context.get('request')
-        user=request.user
-        user_obj=authenticate(username=user,password=value)
-        if user_obj.exists():
-            return value
-        raise serializers.ValidationError("Old Password do not match. Please try again!")
 
     def validate(self,data):
         pass1=data.get('New_Password')
         pass2=data.pop('New_Password2')
+        print(pass1)
+        print(pass2)
         if pass1!=pass2:
-            raise ValidationError('Passwords do not match!')
+            raise serializers.ValidationError('Passwords do not match!')
         return data
     
-    def update(self,instance,validated_data):
-        instance.password=validated_data.get('New_Password',instance.password)
-        instance.save()
-        return instance
+
+class LoginSerializer(serializers.Serializer):
+
+    username=serializers.CharField()
+    password=serializers.CharField(style={'input_type':'password'},write_only=True)
+
+    def validate_username(self,value):
+        if value=="":
+            return serializers.ValidationError("Username cannot be left blank")
+        return value
+    
+    def validate_password(self,value):
+        if value=="":
+            return serializers.ValidationError("Password Field cannot be left blank")
+        return value
+    
+class ForgotPasswordSerializer(serializers.Serializer):
+
+    username=serializers.CharField()
+
+
+
 
