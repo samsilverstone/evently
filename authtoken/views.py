@@ -5,6 +5,7 @@ from rest_framework import generics,status
 from django.contrib.auth import authenticate,get_user_model
 from django.db.models import Q
 from .serializers import CreateUserSerializer,ChangePasswordSerializer,LoginSerializer,ForgotPasswordSerializer
+from location.Function.formatdata import formatdata
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework_jwt.settings import api_settings
 from .utils import jwt_response_payload_handler
@@ -146,19 +147,27 @@ class placeDetailsAPI(APIView):
         # img_decode=base64.decodebytes(img_byte_data)
         # with open('img_data.jpeg','wb') as img:
         #     img.write(img_decode)
-        nearbydata={}
         nearbyarr=[]
         for i in range(len(data["results"])):
-            nearbydata={
-                "name":data["results"][i]["name"],
-                "open_now":data["results"][i]["opening_hours"] if "opening_hours" in data["results"][i].keys() else None,
-                "place_id":data["results"][i]["place_id"],
-                "price_level":data["results"][i]["price_level"] if "price_level" in data["results"][i].keys() else None,
-                "rating":data["results"][i]["rating"] if "rating" in data["results"][i].keys() else None,
-                "user_ratings_total":data["results"][i]["user_ratings_total"] if "user_ratings_total" in data["results"][i].keys() else None,
-                "types":data["results"][i]["types"]
-            }
-            nearbyarr.append(nearbydata)
-        return Response({"data":nearbyarr})
+            nearbyarr.append(formatdata(data["results"][i]))
+        return Response({
+            "data":nearbyarr,
+            "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None
+        })
     
 
+class nextPageDetailsAPI(APIView):
+
+    def get(self,request,*args,**kwargs):
+        next_page_token=request.query_params.get('next_page_token')
+        key="AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ"
+        response=requests.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken={}&key={}".format(next_page_token,key))
+        data=response.json()
+        print(data)
+        nearbyarr=[]
+        for i in range(len(data["results"])):
+            nearbyarr.append(formatdata(data["results"][i]))
+        return Response({
+            "data":nearbyarr,
+            "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None
+            })
