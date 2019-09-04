@@ -151,8 +151,12 @@ class placeDetailsAPI(APIView):
         for i in range(len(data["results"])):
             nearbyarr.append(formatdata(data["results"][i]))
         return Response({
-            "data":nearbyarr,
-            "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None
+            "data":nearbyarr,   
+            "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None,
+            "origin":{
+                "lat":lat,
+                "lng":lng
+            }   
         })
     
 
@@ -163,11 +167,40 @@ class nextPageDetailsAPI(APIView):
         key="AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ"
         response=requests.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken={}&key={}".format(next_page_token,key))
         data=response.json()
-        print(data)
         nearbyarr=[]
         for i in range(len(data["results"])):
             nearbyarr.append(formatdata(data["results"][i]))
         return Response({
             "data":nearbyarr,
-            "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None
+            "nextpagetoken":data["next_page_token"] if "next_page_token" in data.keys() else None
             })
+
+class IndividualplaceDetailsAPI(APIView):
+    
+    def get(self,request,*args,**kwargs):
+        place_id=request.query_params.get("place_id")
+        response=requests.get("https://maps.googleapis.com/maps/api/place/details/json?placeid={}&fields=name,place_id,formatted_address,rating,opening_hours,website,review,formatted_phone_number&key=AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ".format(place_id))
+        data=response.json()["result"]
+        open=[]
+        if "opening_hours" in data.keys():
+            if "weekday_text" in data["opening_hours"].keys():
+                open=data["opening_hours"]["weekday_text"]
+            else:
+                open=None
+        else:
+            open=None
+        if response.json()["status"]=="OK":
+            formatted_data={
+                "formatted_address":data["formatted_address"] if "formatted_address" in data.keys() else None,
+                "formatted_phone_number":data["formatted_phone_number"] if "formatted_phone_number" in data.keys() else None,
+                "opening_hours":open,
+                "website":data["website"] if "website" in data.keys() else None,
+                "place_id":data["place_id"] if "place_id" in data.keys() else None
+            }
+            return Response({
+             "data":formatted_data
+             })
+        else:
+            return Response({
+                "data":"Some Error Occured"
+            },status=status.HTTP_400_BAD_REQUEST)
