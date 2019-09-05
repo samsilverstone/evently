@@ -12,15 +12,18 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os
 import datetime
+from dotenv import load_dotenv
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
-
+# '@@!1#02kzuz6o2mrkj_rps9#t*&_6_po$b#b&@1nq=%xqa1li('
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '@@!1#02kzuz6o2mrkj_rps9#t*&_6_po$b#b&@1nq=%xqa1li('
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -83,11 +86,11 @@ WSGI_APPLICATION = 'Cruz.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME':'Cruz',
-        'USER':'postgres',
-        'PASSWORD':'postgres',
-        'HOST':'localhost',
-        'PORT':'5432'
+        'NAME':os.getenv('DB_NAME'),
+        'USER':os.getenv('DB_USER'),
+        'PASSWORD':os.getenv('USER_PASSWORD'),
+        'HOST':os.getenv('HOST'),
+        'PORT':os.getenv('PORT')
     }
 }
 
@@ -125,7 +128,8 @@ USE_L10N = True
 
 USE_TZ = True
 
-
+API_KEY=os.getenv('API_KEY')
+SENDGRID_KEY=os.getenv('SENDGRID_KEY')
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 

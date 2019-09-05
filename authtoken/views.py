@@ -13,6 +13,7 @@ from .permissions import IsOwnerOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from django.conf import settings 
 import requests
 import base64
 import shutil
@@ -82,7 +83,7 @@ class ForgotPasswordAPI(APIView):
             qs=User.objects.filter(Q(username__iexact=username)|Q(email__iexact=username))
             if qs.count()==1:
                 user=qs.first()
-                key='AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ'
+                key=settings.API_KEY
                 # url='https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=-33.8670522,151.1957362&radius=1500&type=restaurant&key=AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ'
                 # url='https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=CnRtAAAATLZNl354RwP_9UKbQ_5Psy40texXePv4oAlgP4qNEkdIrkyse7rPXYGd9D_Uj1rVsQdWT4oRz4QrYAJNpFX7rzqqMlZw2h2E2y5IKMUZ7ouD_SlcHxYq1yL4KbKUv3qtWgTK0A6QbGh87GB3sscrHRIQiG2RrmU_jF4tENr9wGS_YxoUSSDrYjWmrNfeEHSGSc3FyhNLlBU&key=AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ'
                 url='https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=Saket%20New%20Delhi&inputtype=textquery&fields=photos,formatted_address,name,rating,opening_hours,geometry&key=AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ'
@@ -102,7 +103,7 @@ class ForgotPasswordAPI(APIView):
         subject='Sending with Twilio SendGrid is Fun',
         html_content='<strong>and easy to do anywhere, even with Python</strong>')
         try:
-            sg = SendGridAPIClient('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')
+            sg = SendGridAPIClient(settings.SENDGRID_KEY)
             response = sg.send(message)
             print(response.status_code)
             print(response.body)
@@ -118,12 +119,17 @@ class placeDetailsAPI(APIView):
         radius=request.query_params.get('radius',2000)
         feature=request.query_params.get('rankby','')
         print(feature)
-        key='AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ'
+        key=settings.API_KEY
         response=requests.get("https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={}&inputtype=textquery&fields=geometry&key={}".format(location,key))
         res=response.json()
         lat=res["candidates"][0]["geometry"]["location"]["lat"]
         lng=res["candidates"][0]["geometry"]["location"]["lng"]
         data={}
+        global origin
+        origin={
+            "lat":lat,
+            "lng":lng
+        }
         if feature=='distance':
             response=requests.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={},{}&rankby=distance&type={}&keyword={}&key={}".format(lat,lng,category,category,key))
             data=response.json()
@@ -153,10 +159,7 @@ class placeDetailsAPI(APIView):
         return Response({
             "data":nearbyarr,   
             "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None,
-            "origin":{
-                "lat":lat,
-                "lng":lng
-            }   
+            "origin":origin   
         })
     
 
@@ -164,7 +167,7 @@ class nextPageDetailsAPI(APIView):
 
     def get(self,request,*args,**kwargs):
         next_page_token=request.query_params.get('next_page_token')
-        key="AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ"
+        key=settings.API_KEY
         response=requests.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken={}&key={}".format(next_page_token,key))
         data=response.json()
         nearbyarr=[]
@@ -172,14 +175,16 @@ class nextPageDetailsAPI(APIView):
             nearbyarr.append(formatdata(data["results"][i]))
         return Response({
             "data":nearbyarr,
-            "nextpagetoken":data["next_page_token"] if "next_page_token" in data.keys() else None
+            "nextpagetoken":data["next_page_token"] if "next_page_token" in data.keys() else None,
+            "origin":origin
             })
 
 class IndividualplaceDetailsAPI(APIView):
     
     def get(self,request,*args,**kwargs):
         place_id=request.query_params.get("place_id")
-        response=requests.get("https://maps.googleapis.com/maps/api/place/details/json?placeid={}&fields=name,place_id,formatted_address,rating,opening_hours,website,review,formatted_phone_number&key=AIzaSyA4mI-Wb-OWrtHlste2j8GbuFdD4CvzYbQ".format(place_id))
+        key=settings.API_KEY
+        response=requests.get("https://maps.googleapis.com/maps/api/place/details/json?placeid={}&fields=name,place_id,formatted_address,rating,opening_hours,website,review,formatted_phone_number&key={}".format(place_id,key))
         data=response.json()["result"]
         open=[]
         if "opening_hours" in data.keys():
