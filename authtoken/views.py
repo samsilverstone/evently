@@ -122,6 +122,7 @@ class placeDetailsAPI(APIView):
         key=settings.API_KEY
         response=requests.get("https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={}&inputtype=textquery&fields=geometry&key={}".format(location,key))
         res=response.json()
+        print(res)
         lat=res["candidates"][0]["geometry"]["location"]["lat"]
         lng=res["candidates"][0]["geometry"]["location"]["lng"]
         data={}
@@ -158,7 +159,7 @@ class placeDetailsAPI(APIView):
             nearbyarr.append(formatdata(data["results"][i]))
         return Response({
             "data":nearbyarr,   
-            "nextpagetoken":data["next_page_token"] if data["next_page_token"] else None,
+            "nextpagetoken":data["next_page_token"] if "next_page_token" in data.keys() else None,
             "origin":origin   
         })
     
